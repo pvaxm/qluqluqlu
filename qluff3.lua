@@ -1,12 +1,7 @@
--- language: Lua/Luau, file: MontexHub.lua
--- Montex Hub — Airflow UI port of the Aural script
--- all gameplay logic preserved, UI rebuilt on Airflow
-
 local Airflow = loadstring(game:HttpGet("https://raw.githubusercontent.com/PookiePepelsss/Airflow-UI/refs/heads/main/Source.luau"))()
 
 Airflow:LoadFont({ Name = "ValleySans" })
 
--- // Luraph Macros
 if not LPH_OBFUSCATED then
 	LPH_JIT = function(Function) return Function end
 	LPH_JIT_MAX = function(Function) return Function end
@@ -18,7 +13,6 @@ if not LPH_OBFUSCATED then
 	LPH_CRASH = function() end
 end
 
--- // Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -32,7 +26,6 @@ local LocalPlayer = Players.LocalPlayer
 local IsPractice = (game.PlaceId == 81310542478972)
 local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
--- // Config
 local Aural = {
 	AcBypass = {
 		DebugMode = false,
@@ -190,9 +183,14 @@ local Aural = {
 	Gamepasses = {
 		UnlockAll = false,
 	},
+
+	Config = {
+		AutoSave = true,
+		AutoSaveInterval = 30,
+		LastSaved = 0,
+	},
 }
 
--- // AC Bypass (unchanged)
 do
 	local function RunBypass()
 		if (IsPractice) then
@@ -755,7 +753,6 @@ do
 	task.spawn(RunBypass)
 end
 
--- // Window
 local MidnightBlue = {
 	Background           = Color3.fromRGB(8, 12, 24),
 	SecondaryBackground  = Color3.fromRGB(12, 18, 34),
@@ -807,14 +804,12 @@ local Window = Airflow:CreateWindow({
 	},
 })
 
--- // Tabs
 local CatchingTab = Window:CreateTab({ Name = "Catching", Desc = "Magnets and automatics", Icon = "magnet" })
 local OffenseTab = Window:CreateTab({ Name = "Offense", Desc = "QB aimbot", Icon = "target" })
 local DefenseTab = Window:CreateTab({ Name = "Defense", Desc = "Physics and defense", Icon = "shield" })
 local MovementTab = Window:CreateTab({ Name = "Movement", Desc = "Player and visuals", Icon = "move" })
 local MiscTab = Window:CreateTab({ Name = "Misc", Desc = "Players, configs, settings", Icon = "settings" })
 
--- // Catching — Magnets
 CatchingTab:CreateSection("Magnets")
 
 CatchingTab:CreateToggle({
@@ -944,7 +939,6 @@ CatchingTab:CreateSlider({
 	Callback = function(V) Aural.Catching.MagEnhancerMultiplier = V end,
 })
 
--- // Catching — Automatics
 CatchingTab:CreateSection("Automatics")
 
 CatchingTab:CreateToggle({
@@ -1125,7 +1119,6 @@ CatchingTab:CreateSlider({
 	Callback = function(V) Aural.Automatics.AutoRushAccuracy = V end,
 })
 
--- // Offense — QB Aimbot
 local ThrowProfiles = { "Dime", "Dive", "Mag", "Dot", "Bullet", "Fade" }
 local CurrentThrowIndex = table.find(ThrowProfiles, Aural.QbAimbot.ThrowProfile) or 1
 local ThrowProfileDropdown
@@ -1359,7 +1352,6 @@ OffenseTab:CreateToggle({
 	Callback = function(V) Aural.QbAimbot.ShowDistance = V end,
 })
 
--- // Offense — QB keybinds
 if not IsMobile then
 	UserInputService.InputBegan:Connect(function(Input, GameProcessed)
 		if GameProcessed then return end
@@ -1386,7 +1378,6 @@ if not IsMobile then
 	end)
 end
 
--- // Defense — Physics
 DefenseTab:CreateSection("Combat")
 
 DefenseTab:CreateToggle({
@@ -1524,7 +1515,6 @@ DefenseTab:CreateSlider({
 	Callback = function(V) Aural.Physics.BlockExtenderTransparency = V end,
 })
 
--- // Movement — Player
 MovementTab:CreateSection("Movement")
 
 MovementTab:CreateToggle({
@@ -1664,7 +1654,6 @@ MovementTab:CreateToggle({
 	Callback = function(V) Aural.Gamepasses.UnlockAll = V end,
 })
 
--- // Movement — Visuals
 MovementTab:CreateSection("Visuals")
 
 MovementTab:CreateToggle({
@@ -1695,7 +1684,72 @@ MovementTab:CreateColorPicker({
 	Callback = function(V) Aural.Visuals.ThrownBallBeamColor2 = V end,
 })
 
--- // Misc — Settings
+MiscTab:CreateSection("Configs")
+
+MiscTab:CreateConfigManager({
+	Name = "Config Manager",
+})
+
+MiscTab:CreateToggle({
+	Name = "Auto-Save Config",
+	Desc = "Automatically saves your config on every change",
+	CurrentValue = Aural.Config.AutoSave,
+	Flag = "ConfigAutoSave",
+	Callback = function(V)
+		Aural.Config.AutoSave = V
+		if V then
+			Airflow:Notify({
+				Title = "Auto-Save",
+				Content = "Config will save automatically.",
+				Type = "Success",
+				Duration = 2,
+			})
+		end
+	end,
+})
+
+MiscTab:CreateSlider({
+	Name = "Auto-Save Interval",
+	Range = { 5, 120 },
+	Increment = 5,
+	Suffix = "s",
+	CurrentValue = Aural.Config.AutoSaveInterval,
+	Flag = "ConfigAutoSaveInterval",
+	Callback = function(V)
+		Aural.Config.AutoSaveInterval = V
+	end,
+})
+
+MiscTab:CreateButton({
+	Name = "Save Config Now",
+	Icon = "save",
+	Style = "Primary",
+	Callback = function()
+		Window:SaveConfig()
+		Aural.Config.LastSaved = os.clock()
+		Airflow:Notify({
+			Title = "Saved",
+			Content = "Config saved successfully.",
+			Type = "Success",
+			Duration = 2,
+		})
+	end,
+})
+
+MiscTab:CreateButton({
+	Name = "Reload Config",
+	Icon = "refresh-cw",
+	Callback = function()
+		Window:LoadConfig()
+		Airflow:Notify({
+			Title = "Reloaded",
+			Content = "Config reloaded from disk.",
+			Type = "Info",
+			Duration = 2,
+		})
+	end,
+})
+
 MiscTab:CreateSection("Menu")
 
 MiscTab:CreateToggle({
@@ -1712,10 +1766,24 @@ MiscTab:CreateParagraph({
 
 Window:LoadConfig()
 
--- // Gameplay logic (all Aural blocks below run unchanged)
+task.spawn(function()
+	while task.wait(1) do
+		if not Aural.Config.AutoSave then continue end
+
+		local Now = os.clock()
+		if Now - Aural.Config.LastSaved < Aural.Config.AutoSaveInterval then
+			continue
+		end
+
+		local Ok, Err = pcall(function()
+			Window:SaveConfig()
+		end)
+		Aural.Config.LastSaved = Now
+	end
+end)
+
 local Library = { Flags = {}, Folder = "MontexHub", Elements = {}, ToggleKey = Enum.KeyCode.RightShift }
 
--- // Football Magnets
 do
 	local MagnetHitbox = nil
 	local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -1818,7 +1886,6 @@ do
 		end
 	end)
 
-	-- // Pull Vector
 	task.spawn(function()
 		while true do
 			local Time = task.wait()
@@ -1850,7 +1917,6 @@ do
 		end
 	end)
 
-	-- // Dive Vector
 	local function GetFlightFootball(Origin, Radius)
 		local Closest, ClosestDist = nil, Radius
 		for Index, Football in next, workspace:GetChildren() do
@@ -1956,7 +2022,6 @@ do
 		end
 	end)
 
-	-- // Auto Catch, Auto Swat & Auto Jump
 	local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 	local ActionRemote = Remotes and Remotes:FindFirstChild("CharacterSoundEvent")
 	local Flags = ReplicatedStorage:FindFirstChild("Flags")
@@ -1967,7 +2032,6 @@ do
 		return Flag and Flag.Value
 	end
 
-	-- // Swat Reach
 	local SwatReachUntil = 0
 
 	local function StartSwatReach()
@@ -2077,7 +2141,6 @@ do
 		end
 	end)
 
-	-- // Hand Size
 	local HandDefaults = setmetatable({}, { __mode = "k" })
 
 	task.spawn(function()
@@ -2098,7 +2161,6 @@ do
 	end)
 end
 
--- // Auto Captain, Auto Rush, Auto Guard & Tackle Reach
 do
 	local Flags = ReplicatedStorage:FindFirstChild("Flags")
 	local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
@@ -2171,7 +2233,6 @@ do
 		return Vector3.new(Velocity.X, 0, Velocity.Z)
 	end
 
-	-- // Auto Captain
 	if not IsPractice then
 		task.spawn(function()
 			local Models = workspace:WaitForChild("Models", 10)
@@ -2196,7 +2257,6 @@ do
 		end)
 	end
 
-	-- // Auto QB
 	local SkippedPlays = { KICKOFF = true, PUNT = true, PAT = true }
 
 	RunService.Heartbeat:Connect(function()
@@ -2226,7 +2286,6 @@ do
 		end
 	end)
 
-	-- // Auto Rush
 	local RushTarget, RushStart, RushSpread, RushSpreadTick = nil, 0, Vector3.zero, 0
 	local Rushing = false
 
@@ -2266,7 +2325,6 @@ do
 		Humanoid:MoveTo(TargetRoot.Position + FlatVelocity(TargetRoot) * Time + RushSpread * Error)
 	end)
 
-	-- // Auto Guard
 	local GuardTarget = nil
 	local Guarding = false
 
@@ -2304,7 +2362,6 @@ do
 		Humanoid:MoveTo(TargetRoot.Position + FlatVelocity(TargetRoot) * 0.2)
 	end)
 
-	-- // Tackle Reach
 	local LastTackle = 0
 
 	RunService.Heartbeat:Connect(function()
@@ -2327,7 +2384,6 @@ do
 		end
 	end)
 
-	-- // Click Tackle Teleport
 	UserInputService.InputBegan:Connect(function(Input, GameProcessed)
 		if GameProcessed or not Aural.Physics.ClickTackleAimbot or not IsInPlay() then
 			return
@@ -2343,7 +2399,6 @@ do
 		end
 	end)
 
-	-- // Anti Block
 	local function CleanMover(Object)
 		if Aural.Physics.AntiBlock and string.find(Object.Name, "FFmover") then
 			task.defer(Object.Destroy, Object)
@@ -2357,7 +2412,6 @@ do
 		Model.DescendantAdded:Connect(CleanMover)
 	end)
 
-	-- // Anti Jam
 	local JamConstraints = {}
 
 	local function ClearJamConstraints()
@@ -2395,7 +2449,6 @@ do
 		end
 	end)
 
-	-- // Anti OOB
 	task.spawn(function()
 		while task.wait(0.5) do
 			local Models = workspace:FindFirstChild("Models")
@@ -2410,7 +2463,6 @@ do
 		end
 	end)
 
-	-- // Block Extender
 	local BlokDefaults = setmetatable({}, { __mode = "k" })
 
 	task.spawn(function()
@@ -2431,7 +2483,6 @@ do
 		end
 	end)
 
-	-- // Auto Block
 	local AutoBlocking = false
 
 	local function IsAllowedToBlock(Root)
@@ -2527,7 +2578,6 @@ do
 	end)
 end
 
--- // Player
 do
 	local Settings = Aural.Player
 	local MaxWalkSpeed = 23
@@ -2738,7 +2788,6 @@ do
 		end
 	end)
 
-	-- // Gamepasses
 	local PassModule, OriginalOwnsPass = nil, nil
 
 	task.spawn(function()
@@ -2763,7 +2812,6 @@ do
 	end)
 end
 
--- // Quick Teleport
 do
 	local function QuickTeleport()
 		local Distance = Aural.Physics.QuickTpSpeed
@@ -2836,7 +2884,6 @@ do
 	end
 end
 
--- // QB Aimbot (full logic)
 do
 	local Settings = Aural.QbAimbot
 	local Gravity = 28
@@ -3796,7 +3843,6 @@ do
 	end
 end
 
--- // Football Trajectory
 do
 	local GroundHeight = 3
 	local RestHeight = 3.4
@@ -4064,7 +4110,6 @@ do
 	end)
 end
 
--- // Kicker Aim
 do
 	local function GetKickTrigger()
 		if not (getconnections and debug.getupvalues and debug.setupvalue) then
